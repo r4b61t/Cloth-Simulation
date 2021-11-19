@@ -1,8 +1,6 @@
 import numpy as np
 import pygame
-from pygame.version import PygameVersion, SoftwareVersion
 import pymunk
-from pymunk import vec2d
 from pymunk.vec2d import Vec2d
 
 
@@ -17,7 +15,7 @@ radius = 3
 k= 1000
 d = 25
 g=980
-sD = 0.05
+sD = 0.1
 
 pygame.init()
 
@@ -38,10 +36,10 @@ def floor(space):
 def add_pin(space,i):
     body = space.bodies[i]
     x,y = body.position
-    pj = pymunk.PinJoint(space.static_body, body, (x, y), (0,0))
-    pj.stiffness = False
-    pj.id = 3
-    space.add(pj)
+    pin = pymunk.PinJoint(space.static_body, body, (x, y), (0,0))
+    pin.stiffness = False
+    pin.id = 3
+    space.add(pin)
 
 def cloth(space):
     for y in range(top,top+length*(n),length):
@@ -64,7 +62,6 @@ def cloth(space):
             space.add(spring)
 
 def cursor(space):
-    moment = pymunk.moment_for_circle(mass, 0, radius, (0,0))
     body = pymunk.Body(body_type=2)
     body.position = 0,0
     body.start_position = Vec2d(*body.position)
@@ -74,7 +71,7 @@ def cursor(space):
 
 def findParticle(space, x, y):
     for body in space.bodies:
-        if np.linalg.norm(body.position-np.array([x,y])) <= length:
+        if Vec2d.get_distance(body.position,Vec2d(x,y)) <= length:
             return body
     return None
 
@@ -83,7 +80,7 @@ def cutspring(space,x,y):
         a = spring.a.position
         b = spring.b.position
         c = np.array([x,y])            
-        if abs(np.cross(b-a,c-a)) < 200 and 0< np.dot(b-a,c-a) < np.linalg.norm(a-b)**2 and spring.id == 0:
+        if abs((b-a).cross(c-a)) < 200 and 0< (b-a).dot(c-a) < (a-b).get_length_sqrd() and spring.id == 0:
             space.remove(spring)
 
 def drawsprings(display,space):
@@ -134,12 +131,10 @@ def main():
             pygame.draw.circle(display,(0,0,255),(mouseX,mouseY),radius)
             selected_particle = findParticle(space, mouseX, mouseY)
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            #remove all invisible springs
             removecursor(space)
             cursor = None
             selected_particle = None
         if selected_particle:
-            #add invisible spring attached to the cursor
             (mouseX, mouseY) = pygame.mouse.get_pos()
             pygame.draw.circle(display,(0,0,255),(mouseX,mouseY),radius)
             if cursor == None:
@@ -172,5 +167,4 @@ if __name__ == '__main__':
     floor(space)
     for i in range(m):
         add_pin(space,i)
-    # space.shapes[m*n-1].body.apply_impulse_at_local_point((25,0))
     main()
