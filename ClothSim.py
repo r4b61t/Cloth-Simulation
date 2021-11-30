@@ -1,21 +1,20 @@
-import numpy as np
 import pygame
 import pymunk
 from pymunk.vec2d import Vec2d
 
 
-windowsizex, windowsizey = 750,1000
+windowsizex, windowsizey = 1200,1000
 clock = pygame.time.Clock()
 fps = 80
-length = 20
-n,m = 20,20
+length = 10
+n,m = 40,40
 left,top = int((windowsizex-m*length)/2),50
 mass = 0.25
-radius = 3
+radius = 1
 k= 1000
 d = 25
 g=980
-sD = 0.1
+air = 0.25
 
 pygame.init()
 
@@ -24,7 +23,7 @@ display = pygame.display.set_mode((windowsizex,windowsizey))
 def setup_space():
     space = pymunk.Space()
     space.gravity = 0,g
-    space.damping = sD
+    space.damping = air
     return space
 
 
@@ -69,19 +68,20 @@ def cursor(space):
     shape.sensor = True
     space.add(body, shape)    
 
-def findParticle(space, x, y):
+def findParticle(space, c):
     for body in space.bodies:
-        if Vec2d.get_distance(body.position,Vec2d(x,y)) <= length:
+        if Vec2d.get_distance(body.position,c) <= length*2:
             return body
     return None
 
-def cutspring(space,x,y):
+def cutspring(space,c):
     for spring in space.constraints:
         a = spring.a.position
-        b = spring.b.position
-        c = np.array([x,y])            
-        if abs((b-a).cross(c-a)) < 200 and 0< (b-a).dot(c-a) < (a-b).get_length_sqrd() and spring.id == 0:
-            space.remove(spring)
+        if (-10 < a[0] - c[0] < 10 or -10 < a[1] - c[1] < 10) and  spring.id ==0 :
+            b = spring.b.position           
+            if -200 < (b-a).cross(c-a) < 200 and 0< (c-a).dot(b-a) < (b-a).get_length_sqrd() :
+                space.remove(spring)
+
 
 def drawsprings(display,space):
     for spring in space.constraints:
@@ -124,37 +124,35 @@ def main():
         drawparticles(display,space)
         drawsprings(display,space)
 
-        pygame.draw.line(display, (255,255,255),(0,900),(windowsizex,900), 5  )
+        pygame.draw.line(display, (255,255,255),(0,900),(windowsizex,900), 10  )
+        c = pygame.mouse.get_pos()
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:            
-            (mouseX, mouseY) = pygame.mouse.get_pos()
-            pygame.draw.circle(display,(0,0,255),(mouseX,mouseY),radius)
-            selected_particle = findParticle(space, mouseX, mouseY)
+            pygame.draw.circle(display,(0,0,255),c,radius)
+            selected_particle = findParticle(space, c)
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             removecursor(space)
             cursor = None
             selected_particle = None
         if selected_particle:
-            (mouseX, mouseY) = pygame.mouse.get_pos()
-            pygame.draw.circle(display,(0,0,255),(mouseX,mouseY),radius)
+            pygame.draw.circle(display,(0,0,255),c,radius)
             if cursor == None:
                 addcursor(space,selected_particle)
                 cursor = space.bodies[-1]
-            space.bodies[-1].position = ([mouseX,mouseY])
+            space.bodies[-1].position = (c)
             space.bodies[-1].velocity = ([0,0])
-            
+
+
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
-            mouseX, mouseY = pygame.mouse.get_pos()
-            pygame.draw.circle(display,(255,0,0),(mouseX,mouseY),radius)
+            pygame.draw.circle(display,(255,0,0),c,radius)
             selected_spring =1
-            cutspring(space,mouseX,mouseY)
+            cutspring(space,c)
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
             selected_spring = None
         if selected_spring:
-            mouseX, mouseY = pygame.mouse.get_pos()
-            pygame.draw.circle(display,(255,0,0),(mouseX,mouseY),radius)
-            cutspring(space,mouseX,mouseY)
-
+            pygame.draw.circle(display,(255,0,0),c,radius)
+            cutspring(space,c)
+        
         pygame.display.update()
         clock.tick(fps)
         space.step(1/fps)
